@@ -20,13 +20,15 @@ import (
 	"sync"
 )
 
-// defaultPool is the global default pool.
-var defaultPool Pool
-
-var poolMap sync.Map
+var (
+	// defaultPool is the global default pool.
+	defaultPool    Pool
+	defaultPoolCap int32 = 10000
+	poolMap        sync.Map
+)
 
 func init() {
-	defaultPool = NewPool("gopool.DefaultPool", 10000, NewConfig())
+	defaultPool = NewPool("gopool.DefaultPool", defaultPoolCap, NewConfig())
 }
 
 // Go is an alternative to the go keyword, which is able to recover panic.

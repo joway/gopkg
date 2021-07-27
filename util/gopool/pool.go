@@ -16,6 +16,9 @@ package gopool
 
 import (
 	"context"
+	"fmt"
+	"github.com/bytedance/gopkg/util/logger"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 )
@@ -33,18 +36,13 @@ type Pool interface {
 	SetPanicHandler(f func(context.Context, interface{}))
 }
 
-var taskPool sync.Pool
-
-func init() {
-	taskPool.New = newTask
-}
-
 type task struct {
-	ctx context.Context
-	f   func()
-
+	ctx  context.Context
+	f    func()
 	next *task
 }
+
+var taskPool sync.Pool
 
 func (t *task) zero() {
 	t.ctx = nil
@@ -61,10 +59,8 @@ func newTask() interface{} {
 	return &task{}
 }
 
-type taskList struct {
-	sync.Mutex
-	taskHead *task
-	taskTail *task
+func init() {
+	taskPool.New = newTask
 }
 
 type pool struct {
@@ -129,10 +125,7 @@ func (p *pool) CtxGo(ctx context.Context, f func()) {
 	// 2. The current number of workers is less than the upper limit p.cap.
 	// or there are currently no workers.
 	if (atomic.LoadInt32(&p.taskCount) >= p.config.ScaleThreshold && p.WorkerCount() < atomic.LoadInt32(&p.cap)) || p.WorkerCount() == 0 {
-		p.incWorkerCount()
-		w := workerPool.Get().(*worker)
-		w.pool = p
-		w.run()
+		p.spawnWorker()
 	}
 }
 
@@ -151,4 +144,39 @@ func (p *pool) incWorkerCount() {
 
 func (p *pool) decWorkerCount() {
 	atomic.AddInt32(&p.workerCount, -1)
+}
+
+func (p *pool) spawnWorker() {
+	p.incWorkerCount()
+	go func() {
+		for {
+			var t *task
+			p.taskLock.Lock()
+			if p.taskHead != nil {
+				t = p.taskHead
+				p.taskHead = p.taskHead.next
+				atomic.AddInt32(&p.taskCount, -1)
+			}
+			if t == nil {
+				// if there's no task to do, exit
+				p.decWorkerCount()
+				p.taskLock.Unlock()
+				return
+			}
+			p.taskLock.Unlock()
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						msg := fmt.Sprintf("GOPOOL: panic in pool: %s: %v: %s", p.name, r, debug.Stack())
+						logger.CtxErrorf(t.ctx, msg)
+						if p.panicHandler != nil {
+							p.panicHandler(t.ctx, r)
+						}
+					}
+				}()
+				t.f()
+			}()
+			t.Recycle()
+		}
+	}()
 }

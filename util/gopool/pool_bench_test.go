@@ -1,7 +1,6 @@
 package gopool
 
 import (
-	"runtime"
 	"sync"
 	"testing"
 )
@@ -41,7 +40,7 @@ func BenchmarkGoPool(b *testing.B) {
 		b.Run(bc.name, func(b *testing.B) {
 			config := NewConfig()
 			config.ScaleThreshold = 1
-			p := NewPool("benchmark", int32(runtime.GOMAXPROCS(0)), config)
+			p := NewPool("benchmark", defaultPoolCap, config)
 			var wg sync.WaitGroup
 			b.ReportAllocs()
 			b.ResetTimer()
