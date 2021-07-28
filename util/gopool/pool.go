@@ -59,16 +59,17 @@ type pool struct {
 
 // NewPool creates a new pool with the given name, cap and config.
 func NewPool(name string, cap int32, config *Config) Pool {
-	taskListCap := runtime.NumCPU()
-	if taskListCap < 1 {
-		taskListCap = 1
+	cpus := runtime.GOMAXPROCS(0)
+	if cpus < 1 {
+		cpus = 1
 	}
 	p := &pool{
 		name:     name,
 		cap:      cap,
 		config:   config,
-		taskList: make(chan task, taskListCap),
+		taskList: make(chan task, cpus),
 	}
+	p.initDaemonWorkers(cpus)
 	return p
 }
 
@@ -87,25 +88,12 @@ func (p *pool) Go(f func()) {
 func (p *pool) CtxGo(ctx context.Context, f func()) {
 	t := p.spawnTask(ctx, f)
 
-	// start a new worker at beginning
-	if p.WorkerCount() < int32(cap(p.taskList)) {
-		p.spawnWorker(t)
-		return
-	}
-
 	// try to send task to other running worker
-	for tried := 1; tried <= defaultReusedThreshold; tried++ {
-		// try to insert into list
-		select {
-		// insert success
-		case p.taskList <- t:
-			if p.WorkerCount() <= 0 {
-				p.spawnWorker(nil)
-			}
-			return
-		// insert failed
-		default:
-		}
+	select {
+	case p.taskList <- t:
+		return
+	default:
+		// no running workers waiting for tasked
 	}
 
 	// blocking when out of cap
@@ -149,6 +137,28 @@ func (p *pool) spawnTask(ctx context.Context, f func()) task {
 			}
 		}()
 		f()
+	}
+}
+
+func (p *pool) initDaemonWorkers(size int) {
+	for i := 0; i < size; i++ {
+		go p.spawnDaemonWorker()
+	}
+}
+
+func (p *pool) spawnDaemonWorker() {
+	p.incWorkerCount()
+	defer p.decWorkerCount()
+	lifetime := 0
+	for t := range p.taskList {
+		lifetime++
+		t()
+
+		if lifetime >= DefaultWorkerLifetime {
+			//start a new one to clear stack
+			go p.spawnDaemonWorker()
+			return
+		}
 	}
 }
 

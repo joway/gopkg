@@ -14,9 +14,10 @@
 
 package gopool
 
-const (
-	defaultScalaThreshold  = 1
-	defaultReusedThreshold = 1
+var (
+	defaultScalaThreshold  int32 = 1
+	DefaultReusedThreshold       = 1
+	DefaultWorkerLifetime        = 100
 )
 
 // Config is used to config pool.
