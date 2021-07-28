@@ -15,7 +15,8 @@
 package gopool
 
 const (
-	defaultScalaThreshold = 1
+	defaultScalaThreshold  = 1
+	defaultReusedThreshold = 1
 )
 
 // Config is used to config pool.
