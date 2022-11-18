@@ -9,6 +9,13 @@ type Allocator interface {
 	Alloc() (uintptr, error)
 	Free(p uintptr)
 	Close() error
+	Unit() int
+}
+
+type BytesAllocator interface {
+	Alloc() (b []byte, err error)
+	Free(b []byte)
+	Close() error
 }
 
 func lock(mu *uint32) {

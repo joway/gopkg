@@ -82,3 +82,7 @@ func (a *allocator) Free(p uintptr) {
 func (a *allocator) Close() error {
 	return nil
 }
+
+func (a *allocator) Unit() int {
+	return a.unit
+}

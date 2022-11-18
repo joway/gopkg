@@ -9,6 +9,9 @@ var _ Allocator = (*pallocator)(nil)
 
 // p local allocator
 type pallocator struct {
+	unit       int
+	page       int
+	limit      int
 	allocators []Allocator // [pid]Allocator
 }
 
@@ -24,6 +27,9 @@ func NewPLocal(unit int, page int, limit int) (Allocator, error) {
 	}
 
 	return &pallocator{
+		unit:       unit,
+		page:       page,
+		limit:      limit,
 		allocators: allocators,
 	}, nil
 }
@@ -50,4 +56,8 @@ func (a *pallocator) Close() (err error) {
 		}
 	}
 	return err
+}
+
+func (a *pallocator) Unit() int {
+	return a.unit
 }

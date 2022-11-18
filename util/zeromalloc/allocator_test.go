@@ -9,10 +9,7 @@ import (
 )
 
 //go:notinheap
-type testStruct struct {
-	A int
-	B uintptr
-}
+type testStruct testHeapStruct
 
 type testHeapStruct struct {
 	A int
