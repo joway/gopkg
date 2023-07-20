@@ -1,80 +1,49 @@
 package tpool
 
 import (
-	"runtime"
-	"runtime/pprof"
+	"fmt"
 	"sync"
 	"testing"
-	"time"
 )
 
-func TestSleep(t *testing.T) {
-	var threadProfile = pprof.Lookup("threadcreate")
-	runtime.GOMAXPROCS(2)
-	threads := 4
-	p := New(threads)
-	defer p.Close()
-
-	var wg sync.WaitGroup
-	wg.Add(threads)
-	for i := 0; i < threads; i++ {
-		p.Submit(func() {
-			time.Sleep(time.Millisecond * 10)
-			wg.Done()
-		})
-	}
-	wg.Wait()
-	t.Logf("Currnt thread count: %d", threadProfile.Count())
+type benchcase struct {
+	name       string
+	threadPool ThreadPool
 }
 
-func TestCPUBond(t *testing.T) {
-	var threadProfile = pprof.Lookup("threadcreate")
-	runtime.GOMAXPROCS(2)
-	threads := 4
-	p := New(threads)
-	defer p.Close()
-
-	for round := threads; round <= 128; round *= 2 {
-		var wg sync.WaitGroup
-		begin := time.Now()
-		wg.Add(round)
-		for i := 0; i < round; i++ {
-			p.Submit(func() {
-				var sum int
-				for x := 0; x <= 100000000; x++ {
-					sum += x
-				}
-				_ = sum
-				wg.Done()
-			})
+func BenchmarkCPUTasks(b *testing.B) {
+	cases := []benchcase{
+		{name: "FixedThreadPool-4Threads", threadPool: NewFixedThreadPool(4)},
+		{name: "CachedThreadPool-UnlimitedThreads", threadPool: NewCachedThreadPool(WithCachedMaxIdleThreads(32))},
+	}
+	defer func() {
+		for _, c := range cases {
+			c.threadPool.Close()
 		}
-		wg.Wait()
-		cost := time.Now().Sub(begin)
-		t.Logf("Round[%d]: cost %d ms", round, cost.Milliseconds())
-	}
-	t.Logf("Currnt thread count: %d", threadProfile.Count())
-}
+	}()
 
-func TestHugeThreads(t *testing.T) {
-	var threadProfile = pprof.Lookup("threadcreate")
-	runtime.GOMAXPROCS(2)
-	threads := 32
-	p := New(threads)
-	defer p.Close()
-
-	var wg sync.WaitGroup
-	round := threads * 16
-	wg.Add(round)
-	for i := 0; i < round; i++ {
-		p.Submit(func() {
-			var sum int
-			for x := 0; x <= 100000000; x++ {
-				sum += x
+	for _, c := range cases {
+		b.Run(fmt.Sprintf("%s", c.name), func(b *testing.B) {
+			maxCPUTasks := 32
+			for tasks := 1; tasks <= maxCPUTasks; tasks *= 2 {
+				b.Run(fmt.Sprintf("Tasks[%d]", tasks), func(b *testing.B) {
+					for i := 0; i < b.N; i++ {
+						var wg sync.WaitGroup
+						for t := 0; t < tasks; t++ {
+							wg.Add(1)
+							c.threadPool.Submit(func() {
+								defer wg.Done()
+								sum := 0
+								for x := 0; x < 10000000; x++ {
+									sum += x
+								}
+								_ = sum
+							})
+						}
+						wg.Wait()
+					}
+				})
 			}
-			_ = sum
-			wg.Done()
 		})
 	}
-	wg.Wait()
-	t.Logf("Currnt thread count: %d", threadProfile.Count())
 }

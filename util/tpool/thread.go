@@ -1,24 +1,52 @@
 package tpool
 
-import "runtime"
+import (
+	"runtime"
+	"sync/atomic"
+)
+
+var idMaker int32
 
 type Thread struct {
-	scheduler *scheduler
+	id          int32
+	distributor Distributor
+	destructor  func()
 }
 
-func newThread(scheduler *scheduler) *Thread {
+func newThread(distributor Distributor, destructor func(), startup task) *Thread {
+	id := atomic.AddInt32(&idMaker, 1)
 	t := &Thread{
-		scheduler: scheduler,
+		id:          id,
+		distributor: distributor,
+		destructor:  destructor,
 	}
-	go t.run()
+	go t.run(startup)
 	return t
 }
 
-func (t *Thread) run() {
+func (t *Thread) ID() int {
+	return int(t.id)
+}
+
+func (t *Thread) Distributor() Distributor {
+	return t.distributor
+}
+
+func (t *Thread) run(startup task) {
 	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
+	defer func() {
+		if t.destructor != nil {
+			t.destructor()
+		}
+		runtime.UnlockOSThread()
+	}()
+
+	if startup != nil {
+		startup()
+	}
+	var tsk task
 	for {
-		tsk := t.scheduler.Get()
+		tsk = t.distributor.Get()
 		if tsk == nil {
 			// closed
 			return

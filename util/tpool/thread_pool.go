@@ -1,28 +1,36 @@
 package tpool
 
-func New(size int) *threadPool {
-	s := newScheduler(size)
-	threads := make([]*Thread, size)
-	for i := 0; i < size; i++ {
-		threads[i] = newThread(s)
+type task func()
+
+type ThreadPool interface {
+	Size() int
+	Submit(t task)
+	Close()
+}
+
+type Distributor interface {
+	Add(tsk task)
+	Get() (tsk task)
+	Close()
+}
+
+type distributor chan task
+
+func newDistributor(size int) Distributor {
+	return make(distributor, size)
+}
+
+func (d distributor) Add(tsk task) {
+	select {
+	case d <- tsk:
+	default:
 	}
-
-	pool := &threadPool{
-		scheduler: s,
-		threads:   threads,
-	}
-	return pool
 }
 
-type threadPool struct {
-	scheduler *scheduler
-	threads   []*Thread
+func (d distributor) Get() task {
+	return <-d
 }
 
-func (tp *threadPool) Submit(task task) {
-	tp.scheduler.Add(task)
-}
-
-func (tp *threadPool) Close() {
-	tp.scheduler.Close()
+func (d distributor) Close() {
+	close(d)
 }
