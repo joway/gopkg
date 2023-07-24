@@ -6,11 +6,8 @@ import (
 
 const latencyMetricName = "/sched/latencies:seconds"
 
-var (
-	metricSamples = []metrics.Sample{{Name: latencyMetricName}}
-)
-
 func fetchSchedLatency() (p50, p90, p99, max float64) {
+	var metricSamples = []metrics.Sample{{Name: latencyMetricName}}
 	metrics.Read(metricSamples)
 	histogram := metricSamples[0].Value.Float64Histogram()
 

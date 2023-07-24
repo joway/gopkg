@@ -44,6 +44,12 @@ func WithP99LatencyThreshold(threshold float64) Option {
 	}
 }
 
+func WithMaxLatencyThreshold(threshold float64) Option {
+	return func(t *tuner) {
+		t.maxThreshold = threshold
+	}
+}
+
 func WithMonitorFrequency(duration time.Duration) Option {
 	return func(t *tuner) {
 		t.monitorFrequency = duration
@@ -94,6 +100,7 @@ type tuner struct {
 	p50Threshold     float64
 	p90Threshold     float64
 	p99Threshold     float64
+	maxThreshold     float64
 	monitorFrequency time.Duration
 	tuningFrequency  time.Duration
 }
