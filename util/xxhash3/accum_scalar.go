@@ -15,8 +15,9 @@
 package xxhash3
 
 import (
-	"github.com/bytedance/gopkg/internal/runtimex"
 	"unsafe"
+
+	"github.com/bytedance/gopkg/lang/runtimex"
 )
 
 func accumScalar(xacc *[8]uint64, xinput, xsecret unsafe.Pointer, l uintptr) {

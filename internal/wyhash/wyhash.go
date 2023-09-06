@@ -20,7 +20,7 @@ import (
 	"unsafe"
 
 	"github.com/bytedance/gopkg/internal/hack"
-	"github.com/bytedance/gopkg/internal/runtimex"
+	"github.com/bytedance/gopkg/lang/runtimex"
 )
 
 const (

@@ -18,7 +18,7 @@ import (
 	"runtime"
 	"sync/atomic"
 
-	"github.com/bytedance/gopkg/internal/runtimex"
+	"github.com/bytedance/gopkg/lang/runtimex"
 )
 
 type Counter interface {

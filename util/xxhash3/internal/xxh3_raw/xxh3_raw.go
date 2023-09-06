@@ -18,7 +18,7 @@ import (
 	"math/bits"
 	"unsafe"
 
-	"github.com/bytedance/gopkg/internal/runtimex"
+	"github.com/bytedance/gopkg/lang/runtimex"
 )
 
 const (
