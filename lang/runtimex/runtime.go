@@ -20,3 +20,25 @@ import (
 
 //go:linkname Fastrand runtime.fastrand
 func Fastrand() uint32
+
+func getg() uintptr
+
+type puintptr uintptr
+type guintptr uintptr
+type muintptr uintptr
+
+type _m struct {
+	g0      uintptr // goroutine with scheduling stack
+	morebuf uintptr // gobuf arg to morestack
+	divmod  uint32  // div/mod denominator for arm - known to liblink
+	_       uint32  // align next field to 8 bytes
+	procid  uint64  // for debuggers, but offset not hard-coded
+}
+
+type _p struct {
+	id          int32
+	status      uint32 // one of pidle/prunning/...
+	link        puintptr
+	schedtick   uint32 // incremented on every scheduler call
+	syscalltick uint32 // incremented on every system call
+}

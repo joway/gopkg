@@ -18,7 +18,7 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/bytedance/gopkg/internal/runtimex"
+	"github.com/bytedance/gopkg/lang/runtimex"
 )
 
 type Digest struct {

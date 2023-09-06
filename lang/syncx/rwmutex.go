@@ -19,7 +19,7 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/bytedance/gopkg/internal/runtimex"
+	"github.com/bytedance/gopkg/lang/runtimex"
 
 	"golang.org/x/sys/cpu"
 )
