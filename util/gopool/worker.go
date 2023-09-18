@@ -20,6 +20,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/bytedance/gopkg/lang/runtimex"
 	"github.com/bytedance/gopkg/util/logger"
 )
 
@@ -30,17 +31,24 @@ func init() {
 }
 
 type worker struct {
-	pool *pool
+	pool        *pool
+	updateSched bool
 }
 
 func newWorker() interface{} {
-	return &worker{}
+	return &worker{
+		updateSched: true,
+	}
 }
 
 func (w *worker) run() {
 	go func() {
+		g := runtimex.GetG()
+		m := g.M()
+		p := m.P()
 		for {
 			var t *task
+			now := runtimex.Nanotime()
 			w.pool.taskLock.Lock()
 			if w.pool.taskHead != nil {
 				t = w.pool.taskHead
@@ -54,6 +62,14 @@ func (w *worker) run() {
 				w.Recycle()
 				return
 			}
+
+			// update sysmon tick
+			if w.updateSched {
+				st := *p.Sysmontick()
+				st.Schedwhen = now
+				*p.Sysmontick() = st
+			}
+
 			w.pool.taskLock.Unlock()
 			func() {
 				defer func() {

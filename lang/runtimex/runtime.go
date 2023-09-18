@@ -23,6 +23,9 @@ import (
 //go:linkname Fastrand runtime.fastrand
 func Fastrand() uint32
 
+//go:linkname Nanotime runtime.nanotime
+func Nanotime() int64
+
 func getg() uintptr
 
 type puintptr uintptr

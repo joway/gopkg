@@ -15,6 +15,7 @@
 package gopool
 
 import (
+	"math"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -53,6 +54,30 @@ func TestPool(t *testing.T) {
 	if n != 2000 {
 		t.Error(n)
 	}
+}
+
+func TestCPUBoundTask(t *testing.T) {
+	runtime.GOMAXPROCS(4)
+	p := NewPool("test", math.MaxInt32, NewConfig())
+	var wg sync.WaitGroup
+	var tasks = 1000
+	var loop = 1000000
+	for c := 0; c < tasks; c++ {
+		wg.Add(1)
+		n := c
+		p.Go(func() {
+			defer wg.Done()
+			data := make([]byte, 4096)
+			for i := 0; i < loop; i++ {
+				data[i%len(data)] = 'a' + byte(i%26) + byte(n)
+				if i%100000 == 0 {
+					testFunc()
+				}
+			}
+			_ = data
+		})
+	}
+	wg.Wait()
 }
 
 func TestPoolPanic(t *testing.T) {
