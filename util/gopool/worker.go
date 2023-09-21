@@ -44,6 +44,8 @@ func newWorker() interface{} {
 func (w *worker) run() {
 	go func() {
 		g := runtimex.GetG()
+		m := g.M()
+		p := m.P()
 		for {
 			var t *task
 			now := runtimex.Nanotime()
@@ -61,8 +63,6 @@ func (w *worker) run() {
 				return
 			}
 
-			m := g.M()
-			p := m.P()
 			// update sysmon tick
 			if w.updateSched {
 				st := *p.Sysmontick()
@@ -81,9 +81,7 @@ func (w *worker) run() {
 							logger.CtxErrorf(t.ctx, msg)
 						}
 					}
-					*(g.M().PreemptOff()) = ""
 				}()
-				*m.PreemptOff() = "holding"
 				t.f()
 			}()
 			t.Recycle()
