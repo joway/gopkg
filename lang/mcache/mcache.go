@@ -21,16 +21,58 @@ import (
 const maxSize = 46
 
 // index contains []byte which cap is 1<<index
-var caches [maxSize]sync.Pool
+var caches *MCache
 
 func init() {
+	caches = New()
+}
+
+type MCache [maxSize]sync.Pool
+
+func Malloc(size int, capacity ...int) []byte {
+	return caches.Malloc(size, capacity...)
+}
+
+func Free(buf []byte) {
+	caches.Free(buf)
+}
+
+func New() *MCache {
+	mc := new(MCache)
 	for i := 0; i < maxSize; i++ {
 		size := 1 << i
-		caches[i].New = func() interface{} {
+		mc[i].New = func() interface{} {
 			buf := make([]byte, 0, size)
 			return buf
 		}
 	}
+	return mc
+}
+
+// Malloc supports one or two integer argument.
+// The size specifies the length of the returned slice, which means len(ret) == size.
+// A second integer argument may be provided to specify the minimum capacity, which means cap(ret) >= cap.
+func (m *MCache) Malloc(size int, capacity ...int) []byte {
+	if len(capacity) > 1 {
+		panic("too many arguments to Malloc")
+	}
+	var c = size
+	if len(capacity) > 0 && capacity[0] > size {
+		c = capacity[0]
+	}
+	var ret = m[calcIndex(c)].Get().([]byte)
+	ret = ret[:size]
+	return ret
+}
+
+// Free should be called when the buf is no longer used.
+func (m *MCache) Free(buf []byte) {
+	size := cap(buf)
+	if !isPowerOfTwo(size) {
+		return
+	}
+	buf = buf[:0]
+	m[bsr(size)].Put(buf)
 }
 
 // calculates which pool to get from
@@ -42,30 +84,4 @@ func calcIndex(size int) int {
 		return bsr(size)
 	}
 	return bsr(size) + 1
-}
-
-// Malloc supports one or two integer argument.
-// The size specifies the length of the returned slice, which means len(ret) == size.
-// A second integer argument may be provided to specify the minimum capacity, which means cap(ret) >= cap.
-func Malloc(size int, capacity ...int) []byte {
-	if len(capacity) > 1 {
-		panic("too many arguments to Malloc")
-	}
-	var c = size
-	if len(capacity) > 0 && capacity[0] > size {
-		c = capacity[0]
-	}
-	var ret = caches[calcIndex(c)].Get().([]byte)
-	ret = ret[:size]
-	return ret
-}
-
-// Free should be called when the buf is no longer used.
-func Free(buf []byte) {
-	size := cap(buf)
-	if !isPowerOfTwo(size) {
-		return
-	}
-	buf = buf[:0]
-	caches[bsr(size)].Put(buf)
 }
